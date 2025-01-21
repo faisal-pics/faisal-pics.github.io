@@ -1,0 +1,14 @@
+{
+  "name": "photo-gallery",
+  "version": "1.0.0",
+  "description": "Photo gallery with EXIF removal",
+  "scripts": {
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "piexifjs": "^1.0.6"
+  },
+  "devDependencies": {
+    "husky": "^8.0.3"
+  }
+}
