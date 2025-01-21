@@ -7,6 +7,8 @@ class PhotoGallery {
     this.closeModal = document.querySelector(".close-modal");
     this.currentCategory = "all";
     this.photos = [];
+    this.repoOwner = "faisal-pics";
+    this.repoName = "faisal-pics.github.io";
 
     this.initializeEventListeners();
     this.scanPhotosDirectory();
@@ -35,41 +37,61 @@ class PhotoGallery {
 
   async scanPhotosDirectory() {
     try {
-      const response = await fetch("photos/");
-      if (!response.ok) throw new Error("Failed to scan photos directory");
+      // First, get the photos directory contents
+      const photosDir = await this.getDirectoryContents("photos");
+      if (!photosDir) throw new Error("Photos directory not found");
 
-      const text = await response.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, "text/html");
-
-      // Get all links that point to image files
-      const links = Array.from(doc.querySelectorAll("a")).filter((a) => {
-        const href = a.getAttribute("href");
-        return href.match(/\.(jpg|jpeg|png|webp)$/i);
-      });
-
-      // Extract categories and photos
+      // Get contents of each category directory
       const categories = new Set(["all"]);
-      this.photos = links.map((link) => {
-        const path = link.getAttribute("href");
-        const parts = path.split("/");
-        const category = parts.length > 1 ? parts[0] : "uncategorized";
-        categories.add(category);
+      this.photos = [];
 
-        return {
-          path: `photos/${path}`,
-          category,
-          filename: parts[parts.length - 1],
-        };
-      });
+      for (const item of photosDir) {
+        if (item.type === "dir") {
+          categories.add(item.name);
+          const categoryContents = await this.getDirectoryContents(
+            `photos/${item.name}`
+          );
+
+          // Add all images from this category
+          for (const file of categoryContents) {
+            if (this.isImageFile(file.name)) {
+              this.photos.push({
+                path: `photos/${item.name}/${file.name}`,
+                category: item.name,
+                filename: file.name,
+              });
+            }
+          }
+        } else if (this.isImageFile(item.name)) {
+          // Handle images directly in photos directory
+          this.photos.push({
+            path: `photos/${item.name}`,
+            category: "uncategorized",
+            filename: item.name,
+          });
+          categories.add("uncategorized");
+        }
+      }
 
       this.createCategoryButtons(Array.from(categories));
       this.displayPhotos();
     } catch (error) {
-      console.error("Error scanning photos directory:", error);
-      this.photoGrid.innerHTML =
-        '<div class="loading">Error loading photos. Please make sure the photos directory exists and is accessible.</div>';
+      console.error("Error scanning photos:", error);
+      this.photoGrid.innerHTML = `<div class="loading">Error loading photos: ${error.message}</div>`;
     }
+  }
+
+  async getDirectoryContents(path) {
+    const apiUrl = `https://api.github.com/repos/${this.repoOwner}/${this.repoName}/contents/${path}`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${path}: ${response.statusText}`);
+    }
+    return await response.json();
+  }
+
+  isImageFile(filename) {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
   }
 
   createCategoryButtons(categories) {
@@ -108,6 +130,12 @@ class PhotoGallery {
           );
 
     this.photoGrid.innerHTML = "";
+
+    if (filteredPhotos.length === 0) {
+      this.photoGrid.innerHTML =
+        '<div class="loading">No photos found in this category</div>';
+      return;
+    }
 
     filteredPhotos.forEach((photo) => {
       const photoItem = document.createElement("div");
