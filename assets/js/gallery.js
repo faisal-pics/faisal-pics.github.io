@@ -7,8 +7,7 @@ class PhotoGallery {
     this.closeModal = document.querySelector(".close-modal");
     this.prevBtn = document.querySelector(".prev-btn");
     this.nextBtn = document.querySelector(".next-btn");
-    this.currentIndexEl = document.getElementById("current-index");
-    this.totalCountEl = document.getElementById("total-count");
+    this.modalCounter = document.querySelector(".modal-counter");
     this.loadingIndicator = document.querySelector(".loading-indicator");
     this.currentCategory = "all";
     this.currentPhotoIndex = 0;
@@ -33,8 +32,14 @@ class PhotoGallery {
     });
 
     // Navigation buttons
-    this.prevBtn.addEventListener("click", () => this.showPreviousImage());
-    this.nextBtn.addEventListener("click", () => this.showNextImage());
+    this.prevBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.showPreviousImage();
+    });
+    this.nextBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.showNextImage();
+    });
 
     // Keyboard navigation
     document.addEventListener("keydown", (e) => {
@@ -55,8 +60,14 @@ class PhotoGallery {
 
     // Image load handling
     this.modalImg.addEventListener("load", () => {
-      this.modalImg.classList.remove("loading");
       this.loadingIndicator.classList.remove("active");
+      this.modalImg.classList.add("loaded");
+    });
+
+    this.modalImg.addEventListener("error", () => {
+      this.loadingIndicator.classList.remove("active");
+      this.modalImg.classList.remove("loaded");
+      this.modalImg.alt = "Failed to load image";
     });
   }
 
@@ -77,18 +88,23 @@ class PhotoGallery {
 
   updateModalImage() {
     const photo = this.visiblePhotos[this.currentPhotoIndex];
-    this.modalImg.classList.add("loading");
+
+    // Reset image state
+    this.modalImg.classList.remove("loaded");
     this.loadingIndicator.classList.add("active");
+
+    // Update image
     this.modalImg.src = photo.path;
     this.modalImg.alt = photo.filename;
-    this.currentIndexEl.textContent = this.currentPhotoIndex + 1;
-    this.totalCountEl.textContent = this.visiblePhotos.length;
 
-    // Update navigation button states
-    this.prevBtn.style.display =
-      this.visiblePhotos.length > 1 ? "flex" : "none";
-    this.nextBtn.style.display =
-      this.visiblePhotos.length > 1 ? "flex" : "none";
+    // Update counter
+    this.modalCounter.textContent = `${this.currentPhotoIndex + 1} / ${
+      this.visiblePhotos.length
+    }`;
+
+    // Update navigation button visibility
+    this.prevBtn.style.display = this.visiblePhotos.length > 1 ? "" : "none";
+    this.nextBtn.style.display = this.visiblePhotos.length > 1 ? "" : "none";
   }
 
   showModal(photo) {
@@ -100,23 +116,28 @@ class PhotoGallery {
     this.currentPhotoIndex = this.visiblePhotos.findIndex(
       (p) => p.path === photo.path
     );
+    document.body.style.overflow = "hidden";
     this.modal.classList.add("active");
     this.updateModalImage();
   }
 
   hideModal() {
+    document.body.style.overflow = "";
     this.modal.classList.remove("active");
-    this.modalImg.src = "";
-    this.modalImg.alt = "";
+    setTimeout(() => {
+      if (!this.modal.classList.contains("active")) {
+        this.modalImg.src = "";
+        this.modalImg.alt = "";
+        this.modalImg.classList.remove("loaded");
+      }
+    }, 300);
   }
 
   async scanPhotosDirectory() {
     try {
-      // First, get the photos directory contents
       const photosDir = await this.getDirectoryContents("photos");
       if (!photosDir) throw new Error("Photos directory not found");
 
-      // Get contents of each category directory
       const categories = new Set(["all"]);
       this.photos = [];
 
@@ -127,7 +148,6 @@ class PhotoGallery {
             `photos/${item.name}`
           );
 
-          // Add all images from this category
           for (const file of categoryContents) {
             if (this.isImageFile(file.name)) {
               this.photos.push({
@@ -138,7 +158,6 @@ class PhotoGallery {
             }
           }
         } else if (this.isImageFile(item.name)) {
-          // Handle images directly in photos directory
           this.photos.push({
             path: `photos/${item.name}`,
             category: "uncategorized",
@@ -152,7 +171,7 @@ class PhotoGallery {
       this.displayPhotos();
     } catch (error) {
       console.error("Error scanning photos:", error);
-      this.photoGrid.innerHTML = `<div class="loading">Error loading photos: ${error.message}</div>`;
+      this.photoGrid.innerHTML = `<div class="message">Error loading photos: ${error.message}</div>`;
     }
   }
 
@@ -208,7 +227,7 @@ class PhotoGallery {
 
     if (filteredPhotos.length === 0) {
       this.photoGrid.innerHTML =
-        '<div class="loading">No photos found in this category</div>';
+        '<div class="message">No photos found in this category</div>';
       return;
     }
 
