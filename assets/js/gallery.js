@@ -5,14 +5,7 @@ class PhotoGallery {
     this.modal = document.getElementById("photo-modal");
     this.modalImg = document.getElementById("modal-img");
     this.closeModal = document.querySelector(".close-modal");
-    this.prevBtn = document.querySelector(".prev-btn");
-    this.nextBtn = document.querySelector(".next-btn");
-    this.currentIndexEl = document.getElementById("current-index");
-    this.totalCountEl = document.getElementById("total-count");
-    this.loadingIndicator = document.querySelector(".loading-indicator");
     this.currentCategory = "all";
-    this.currentPhotoIndex = 0;
-    this.visiblePhotos = [];
     this.photos = [];
     this.repoOwner = "faisal-pics";
     this.repoName = "faisal-pics.github.io";
@@ -23,91 +16,23 @@ class PhotoGallery {
 
   initializeEventListeners() {
     // Modal close button
-    this.closeModal.addEventListener("click", () => this.hideModal());
+    this.closeModal.addEventListener("click", () => {
+      this.modal.classList.remove("active");
+    });
 
     // Close modal when clicking outside the image
     this.modal.addEventListener("click", (e) => {
       if (e.target === this.modal) {
-        this.hideModal();
+        this.modal.classList.remove("active");
       }
     });
 
-    // Navigation buttons
-    this.prevBtn.addEventListener("click", () => this.showPreviousImage());
-    this.nextBtn.addEventListener("click", () => this.showNextImage());
-
-    // Keyboard navigation
+    // Close modal with escape key
     document.addEventListener("keydown", (e) => {
-      if (!this.modal.classList.contains("active")) return;
-
-      switch (e.key) {
-        case "Escape":
-          this.hideModal();
-          break;
-        case "ArrowLeft":
-          this.showPreviousImage();
-          break;
-        case "ArrowRight":
-          this.showNextImage();
-          break;
+      if (e.key === "Escape") {
+        this.modal.classList.remove("active");
       }
     });
-
-    // Image load handling
-    this.modalImg.addEventListener("load", () => {
-      this.modalImg.classList.remove("loading");
-      this.loadingIndicator.classList.remove("active");
-    });
-  }
-
-  showPreviousImage() {
-    if (this.visiblePhotos.length <= 1) return;
-    this.currentPhotoIndex =
-      (this.currentPhotoIndex - 1 + this.visiblePhotos.length) %
-      this.visiblePhotos.length;
-    this.updateModalImage();
-  }
-
-  showNextImage() {
-    if (this.visiblePhotos.length <= 1) return;
-    this.currentPhotoIndex =
-      (this.currentPhotoIndex + 1) % this.visiblePhotos.length;
-    this.updateModalImage();
-  }
-
-  updateModalImage() {
-    const photo = this.visiblePhotos[this.currentPhotoIndex];
-    this.modalImg.classList.add("loading");
-    this.loadingIndicator.classList.add("active");
-    this.modalImg.src = photo.path;
-    this.modalImg.alt = photo.filename;
-    this.currentIndexEl.textContent = this.currentPhotoIndex + 1;
-    this.totalCountEl.textContent = this.visiblePhotos.length;
-
-    // Update navigation button states
-    this.prevBtn.style.display =
-      this.visiblePhotos.length > 1 ? "flex" : "none";
-    this.nextBtn.style.display =
-      this.visiblePhotos.length > 1 ? "flex" : "none";
-  }
-
-  showModal(photo) {
-    this.visiblePhotos =
-      this.currentCategory === "all"
-        ? this.photos
-        : this.photos.filter((p) => p.category === this.currentCategory);
-
-    this.currentPhotoIndex = this.visiblePhotos.findIndex(
-      (p) => p.path === photo.path
-    );
-    this.modal.classList.add("active");
-    this.updateModalImage();
-  }
-
-  hideModal() {
-    this.modal.classList.remove("active");
-    this.modalImg.src = "";
-    this.modalImg.alt = "";
   }
 
   async scanPhotosDirectory() {
@@ -166,7 +91,7 @@ class PhotoGallery {
   }
 
   isImageFile(filename) {
-    return /\.(jpg|jpeg|png|webp)$/i.test(filename);
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
   }
 
   createCategoryButtons(categories) {
@@ -222,10 +147,15 @@ class PhotoGallery {
       img.loading = "lazy";
 
       photoItem.appendChild(img);
-      photoItem.addEventListener("click", () => this.showModal(photo));
+      photoItem.addEventListener("click", () => this.showModal(photo.path));
 
       this.photoGrid.appendChild(photoItem);
     });
+  }
+
+  showModal(imagePath) {
+    this.modalImg.src = imagePath;
+    this.modal.classList.add("active");
   }
 }
 
